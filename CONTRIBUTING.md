@@ -62,6 +62,33 @@ xcodebuild -scheme Piru -destination 'platform=iOS Simulator,name=iPhone 18 Pro 
 If you change any non-UI logic — a PK or effect formula, an interaction rule, a dose/duration resolver, the
 tolerance model — **add or update a test**. Safety-relevant math without a test won't be merged.
 
+### Working on Linux
+
+The iOS app and the Android APK compile only on macOS. Everything else runs on Linux: the data pipeline,
+CI's Python job, and SwiftFormat/SwiftLint. One script installs it all at CI's pinned versions, outside the
+checkout and without sudo, then fetches the database:
+
+```sh
+pipeline/linux-setup.sh                      # once; tells you to `apt-get install openbabel` if missing
+source ~/.cache/piru-linux/env.sh            # each shell
+python3 pipeline/ci_local.py                 # CI's Python job
+swiftformat --lint . && swiftlint lint --quiet
+pipeline/build.sh fast                       # rebuild the substance DB
+```
+
+For the app itself, run the **macOS builds** workflow (`.github/workflows/macos-builds.yml`) on GitHub's
+macOS runners from your fork's Actions tab, or with the `gh` CLI:
+
+```sh
+gh workflow run macos-builds.yml -f android=true -f screenshots=true
+gh run watch && gh run download              # ios-screenshots/, ios-test-results/, piru-android-debug/
+adb install -r piru-android-debug/app-debug.apk
+```
+
+`ios-screenshots` is every main screen of the iOS app, so you can see a UI change without a Mac. The APK is
+arm64-v8a only: install it on an Android phone over adb. An x86_64 emulator image runs it only through
+Android's ARM translation, if at all.
+
 ## Substance data — never hand-edit the database
 
 The bundled library ships as `Piru/Data/piru-substances.sqlite`, but that file is a **build artifact**.
