@@ -1,0 +1,91 @@
+name: Build APK
+
+# The Android APK compiles only on macOS (Skip's iOS-triple transpile phase
+# needs Xcode). This workflow is how a Linux machine gets one: run it by hand,
+# then download the artifact. See "Working on Linux" in CONTRIBUTING.md.
+#
+#   gh workflow run build-apk.yml
+#   gh run watch && gh run download
+#
+# On demand only: the first run downloads ~6 GB of toolchain.
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Build configuration (release is left unsigned)"
+        type: choice
+        options: [debug, release]
+        default: debug
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      # Must match the vendored skip/skipstone tag android/tools/setup.sh checks.
+      SKIP_VERSION: 1.9.13
+      SKIP_SHA256: 8a0242c19a65e3cb0c1af0cbceb79a7294bd545b47748c007c0a69dc41c9bfdc
+      PIRU_CONFIG: ${{ inputs.config }}
+      PIRU_UNSIGNED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      # The runner image presets ANDROID_HOME and ANDROID_NDK_HOME to its own SDK
+      # and NDK 27, which env.sh would honor; the build needs setup.sh's NDK r30.
+      # Absolute paths: upload-artifact rejects a path containing '..'.
+      - name: Toolchain paths
+        run: |
+          {
+            echo "PIRU_ANDROID=$RUNNER_TEMP/piru-android"
+            echo "ANDROID_HOME=$RUNNER_TEMP/piru-android/android-sdk"
+            echo "ANDROID_NDK_HOME=$RUNNER_TEMP/piru-android/android-ndk-r30"
+          } >> "$GITHUB_ENV"
+      - name: Fetch the bundled substance DB
+        run: pipeline/fetch-db.sh
+      - name: Select latest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Host tools
+        run: |
+          brew install gradle librsvg trash
+          python3 -m pip install pillow
+      # brew serves whichever skip is current; setup.sh insists on the vendored tag.
+      - name: Install skip ${{ env.SKIP_VERSION }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/skip.zip" "https://github.com/skiptools/skip/releases/download/${SKIP_VERSION}/skip-macos.zip"
+          echo "$SKIP_SHA256  $RUNNER_TEMP/skip.zip" | shasum -a 256 -c -
+          unzip -q -o "$RUNNER_TEMP/skip.zip" -d "$RUNNER_TEMP/skip"
+          echo "$RUNNER_TEMP/skip/skip.artifactbundle/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.PIRU_ANDROID }}/downloads
+          key: piru-android-downloads-${{ hashFiles('android/tools/setup.sh', 'android/tools/env.sh') }}
+      - name: Toolchain (android/tools/setup.sh)
+        run: android/tools/setup.sh
+      - name: Stage + compile (android/tools/build-app.sh)
+        run: android/tools/build-app.sh
+      - name: Package (android/tools/package-apk.sh)
+        run: android/tools/package-apk.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piru-android-${{ inputs.config }}
+          path: ${{ env.PIRU_ANDROID }}/stage/.build/Android/app/outputs/apk/${{ inputs.config }}/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: android-build-logs
+          path: |
+            ${{ env.PIRU_ANDROID }}/build/*.log
+            ${{ env.PIRU_ANDROID }}/build/app.errors
+          if-no-files-found: ignore

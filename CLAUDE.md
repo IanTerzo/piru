@@ -55,7 +55,7 @@ xcodebuild -scheme Piru -destination 'platform=iOS Simulator,name=iPhone 18 Pro 
 
 ```
 
-**On Linux**, `pipeline/linux-setup.sh` installs the pipeline, CI's Python job and the pinned SwiftFormat/SwiftLint (then `source ~/.cache/piru-linux/env.sh`); the iOS app and Android APK build on GitHub's macOS runners through the on-demand `macos-builds.yml` workflow. Details in CONTRIBUTING.md → "Working on Linux".
+**On Linux**, `pipeline/linux-setup.sh` installs the pipeline, CI's Python job and the pinned SwiftFormat/SwiftLint (then `source ~/.cache/piru-linux/env.sh`); the Android APK builds on GitHub's macOS runners through the on-demand `build-apk.yml` workflow (the iOS app builds in CI). Details in CONTRIBUTING.md → "Working on Linux".
 
 **Every archive passes `pipeline/check-weak-imports.py` before it ships.** A symbol the SDK declares `@backDeployed(before: <the SDK's own OS version>)` is weak-imported and called on any OS reporting that version, and early betas of it report the version without exporting the symbol: the call jumps to address 0. The script reads each binary's SDK from LC_BUILD_VERSION, indexes that SDK's `.swiftinterface` files, and fails on a weak import of a back-deployed declaration; `@available(<SDK version>)` symbols print as warnings.
 

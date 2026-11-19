@@ -76,18 +76,17 @@ swiftformat --lint . && swiftlint lint --quiet
 pipeline/build.sh fast                       # rebuild the substance DB
 ```
 
-For the app itself, run the **macOS builds** workflow (`.github/workflows/macos-builds.yml`) on GitHub's
+For the Android APK, run the **Build APK** workflow (`.github/workflows/build-apk.yml`) on GitHub's
 macOS runners from your fork's Actions tab, or with the `gh` CLI:
 
 ```sh
-gh workflow run macos-builds.yml -f android=true -f screenshots=true
-gh run watch && gh run download              # ios-screenshots/, ios-test-results/, piru-android-debug/
+gh workflow run build-apk.yml                # -f config=release for an unsigned release build
+gh run watch && gh run download              # → piru-android-debug/app-debug.apk
 adb install -r piru-android-debug/app-debug.apk
 ```
 
-`ios-screenshots` is every main screen of the iOS app, so you can see a UI change without a Mac. The APK is
-arm64-v8a only: install it on an Android phone over adb. An x86_64 emulator image runs it only through
-Android's ARM translation, if at all.
+The APK is arm64-v8a only: install it on an Android phone over adb. An x86_64 emulator image runs it only
+through Android's ARM translation, if at all. The iOS build and tests run in CI on every push.
 
 ## Substance data — never hand-edit the database
 

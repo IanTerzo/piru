@@ -4,9 +4,9 @@
 # Xcode: the data pipeline, CI's Python job, and SwiftFormat/SwiftLint.
 #
 # The iOS app and the Android APK both compile only on macOS (Xcode, and Skip's
-# iOS-triple transpile phase). Build them on GitHub's macOS runners with the
-# "macOS builds" workflow (.github/workflows/macos-builds.yml) and download the
-# artifacts; see "Working on Linux" in CONTRIBUTING.md.
+# iOS-triple transpile phase). CI builds and tests the iOS app; the APK builds
+# on GitHub's macOS runners with the "Build APK" workflow
+# (.github/workflows/build-apk.yml). See "Working on Linux" in CONTRIBUTING.md.
 #
 # Everything installs outside the checkout, under $PIRU_LINUX
 # (default ${XDG_CACHE_HOME:-~/.cache}/piru-linux), at the versions CI pins:
